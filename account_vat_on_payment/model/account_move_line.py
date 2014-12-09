@@ -30,6 +30,58 @@ class AccountMoveLine(models.Model):
     vat_on_payment_move_id = fields.Many2one(
         'account.move', string='VAT on payment entry'),
 
+
+    def _prepare_vat_move(self, move):
+        return {
+            'journal_id': (
+                move.journal_id.vat_on_payment_related_journal_id.id
+            ),
+            'period_id': move.period_id.id,
+            'date': move.date,
+        }
+
+    def _get_move_lines_to_transform(self):
+        """
+        Returns {invoice_id: [line_id, line_id]}
+        Dict values are income/expense and tax lines
+        """
+        move_lines_to_transform = {}
+        for move_line in self:
+            if move_line.invoice:
+                move_lines_to_transform[move_line.invoice.id] = []
+                for partner_move_line in move_line.move_id.line_id:
+                    if (
+                        partner_move_line.invoice and
+                        partner_move_line.account_id.type
+                        != self._context['cash_basis_payment_type']
+                    ):
+                        move_lines_to_transform[move_line.invoice.id].append(
+                            partner_move_line.id)
+        return move_lines_to_transform
+
+    def 
+
+    @api.multi
+    def _create_vat_on_payment_move(self):
+        """
+        to be used setting the following values in context:
+         - cash_basis_paid_percentage is in the form
+           {invoice_id: percentage}
+         - cash_basis_payment_type can be 'receivable' or 'payable'
+         - cash_basis_payment_date is the payment date
+         - cash_basis_payment_move_id is the account.move on the bank/cash
+           journal
+        """
+        if (
+            'cash_basis_paid_percentage' in self._context
+            and 'cash_basis_payment_type' in self._context
+            and 'cash_basis_payment_date' in self._context
+            and 'cash_basis_payment_move_id' in self._context
+        ):
+            cash_basis_paid_percentage = self._context[
+                'cash_basis_paid_percentage']
+            move_lines_to_transform = self._get_move_lines_to_transform()
+
     def reconcile_partial(
         self, cr, uid, ids, type='auto', context=None, writeoff_acc_id=False,
         writeoff_period_id=False, writeoff_journal_id=False
@@ -39,26 +91,5 @@ class AccountMoveLine(models.Model):
             writeoff_acc_id=writeoff_acc_id,
             writeoff_period_id=writeoff_period_id,
             writeoff_journal_id=writeoff_journal_id)
-        if context is None:
-            context = {}
-        if (
-            'cash_basis_values' in context
-            and 'cash_basis_payment_type' in context
-        ):
-            # cash_basis_values is in the form
-            # {invoice_id: allocated_amount}
-            # cash_basis_payment_type can be 'receivable' or 'payable'
-            cash_basis_values = context['cash_basis_values']
-            for move_line in self.browse(cr, uid, ids, context=context):
-                if move_line.invoice:
-                    invoice = move_line.invoice
-                    if invoice.id not in cash_basis_values:
-                        raise except_orm(
-                            _('Error'),
-                            _('Reconciling invoice %s, but it is not present '
-                              'in cash_basis_values') % invoice.number)
-                    part = (
-                        cash_basis_values[invoice.id] / invoice.amount_total)
-                    for invoice_tax in invoice.tax_line:
-                        
+        self._create_vat_on_payment_move(cr, uid, ids, context=context)
         return res
