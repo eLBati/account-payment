@@ -28,7 +28,7 @@ class AccountAccount(models.Model):
 
     vat_on_payment_related_account_id = fields.Many2one(
         'account.account',
-        string='Shadow Account for VAT on payment',
-        help='Related account used for real registrations on a VAT on payment '
-        'basis. Set the shadow account here'
+        string='Account for VAT on payment',
+        help='Related account used for registrations in a VAT on payment '
+        'basis'
     ),

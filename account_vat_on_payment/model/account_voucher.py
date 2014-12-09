@@ -204,7 +204,7 @@ class AccountVoucher(models.Model):
                     or line.account_id.type == 'payable'
                 ):
                     line.write({
-                        'real_payment_move_id': voucher.move_id.id,
+                        'vat_on_payment_move_id': voucher.move_id.id,
                     })
         return True
 

@@ -28,7 +28,7 @@ class AccountJournal(models.Model):
 
     vat_on_payment_related_journal_id = fields.Many2one(
         'account.journal',
-        string='Shadow Journal for VAT on payment',
+        string='Journal for VAT on payment',
         help='Related journal used for shadow registrations on a VAT on '
         'payment basis. Set the shadow journal here'
     )

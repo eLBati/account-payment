@@ -20,15 +20,45 @@
 #
 ##############################################################################
 
-from openerp import models, fields
+from openerp import models, fields, _
+from openerp.exceptions import except_orm
 
 
 class AccountMoveLine(models.Model):
     _inherit = "account.move.line"
 
-    real_payment_move_id = fields.Many2one(
-        'account.move', string='Real payment entry'),
-    real_account_id = fields.Many2one(
-        'account.account', string='Real account'),
-    real_tax_code_id = fields.Many2one(
-        'account.tax.code', string='Real tax code'),
+    vat_on_payment_move_id = fields.Many2one(
+        'account.move', string='VAT on payment entry'),
+
+    def reconcile_partial(
+        self, cr, uid, ids, type='auto', context=None, writeoff_acc_id=False,
+        writeoff_period_id=False, writeoff_journal_id=False
+    ):
+        res = super(AccountMoveLine, self).reconcile_partial(
+            cr, uid, ids, type=type, context=context,
+            writeoff_acc_id=writeoff_acc_id,
+            writeoff_period_id=writeoff_period_id,
+            writeoff_journal_id=writeoff_journal_id)
+        if context is None:
+            context = {}
+        if (
+            'cash_basis_values' in context
+            and 'cash_basis_payment_type' in context
+        ):
+            # cash_basis_values is in the form
+            # {invoice_id: allocated_amount}
+            # cash_basis_payment_type can be 'receivable' or 'payable'
+            cash_basis_values = context['cash_basis_values']
+            for move_line in self.browse(cr, uid, ids, context=context):
+                if move_line.invoice:
+                    invoice = move_line.invoice
+                    if invoice.id not in cash_basis_values:
+                        raise except_orm(
+                            _('Error'),
+                            _('Reconciling invoice %s, but it is not present '
+                              'in cash_basis_values') % invoice.number)
+                    part = (
+                        cash_basis_values[invoice.id] / invoice.amount_total)
+                    for invoice_tax in invoice.tax_line:
+                        
+        return res

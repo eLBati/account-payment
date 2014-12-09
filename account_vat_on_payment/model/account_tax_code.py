@@ -28,7 +28,7 @@ class AccountTaxCode(models.Model):
 
     vat_on_payment_related_tax_code_id = fields.Many2one(
         'account.tax.code',
-        string='Shadow Tax code for VAT on payment',
-        help='Related tax code used for real registrations on a VAT on payment '
-        'basis. Set the shadow tax code here'
+        string='Tax code for VAT on payment',
+        help='Related tax code used for registrations in a VAT on payment '
+        'basis.'
     )

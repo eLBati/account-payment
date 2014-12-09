@@ -29,58 +29,6 @@ class AccountInvoice(models.Model):
     def _get_vat_on_payment(self):
         return self.env.user.company_id.vat_on_payment
 
-    def _set_vat_on_payment_account(self, line_tuple):
-        account = self.env['account.account'].browse(
-            line_tuple[2]['account_id'])
-        if account.type not in ['receivable', 'payable']:
-            if not account.vat_on_payment_related_account_id:
-                raise Warning(
-                    _('Error'),
-                    _("The invoice is 'VAT on payment' but "
-                      "account %s does not have a related shadow "
-                      "account")
-                    % account.name)
-            line_tuple[2]['real_account_id'] = line_tuple[
-                2]['account_id']
-            line_tuple[2]['account_id'] = (
-                account.vat_on_payment_related_account_id.id)
-        return line_tuple
-
-    def _set_vat_on_payment_tax_code(self, line_tuple):
-        tax_code = self.env['account.tax.code'].browse(
-            line_tuple[2]['tax_code_id'])
-        if not tax_code.vat_on_payment_related_tax_code_id:
-            raise Warning(
-                _('Error'),
-                _("The invoice is 'VAT on payment' but "
-                  "tax code %s does not have a related shadow "
-                  "tax code")
-                % tax_code.name)
-        line_tuple[2]['real_tax_code_id'] = line_tuple[
-            2]['tax_code_id']
-        line_tuple[2]['tax_code_id'] = (
-            tax_code.vat_on_payment_related_tax_code_id.id)
-        return line_tuple
-
-    @api.multi
-    def finalize_invoice_move_lines(self, move_lines):
-        """
-        Use shadow accounts for journal entry to be generated, according to
-        account and tax code related records
-        """
-        invoices = self.with_context(self.env['res.users'].context_get())
-        move_lines = super(invoices, self).finalize_invoice_move_lines(
-            move_lines)
-        new_move_lines = []
-        for line_tuple in move_lines:
-            if self.vat_on_payment:
-                if line_tuple[2].get('account_id', False):
-                    line_tuple = self._set_vat_on_payment_account(line_tuple)
-                if line_tuple[2].get('tax_code_id', False):
-                    line_tuple = self._set_vat_on_payment_tax_code(line_tuple)
-            new_move_lines.append(line_tuple)
-        return new_move_lines
-
     @api.multi
     def onchange_partner_id(
             self, type, partner_id, date_invoice=False,
